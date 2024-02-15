@@ -5,5 +5,7 @@ An Hourglass Transformer VQ-VAE architecture.
 
 ## TODO
 
-- [ ] FlashAttention2 support.
+- [x] Linear attention.
+- [ ] GQA.
+- [ ] FlashAttention2.
 - [ ] Experiment with attention upsampling rather than linear upsampling. 
