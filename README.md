@@ -13,3 +13,4 @@ As part of the LatentLM project, a first-stage model capable of compressing very
 - [ ] FlashAttention2 with sliding window to replace linear attention.
 - [ ] Attention upsampling to replace linear upsampling. 
 - [ ] (Optional) experiment with adverserial losses (Hourglass VQ-GAN).
+- [ ] Hyperparameter tuning.
