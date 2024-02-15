@@ -105,8 +105,13 @@ class LinearDownsample(nn.Module):
 
 
 class RoPE(nn.Module):
-    """Rotary positional embedding.
-    
+    """Rotary positional embedding (RoPE).
+
+    Rotary positional embedding (Su et al., 2023) rotates keys and queries by
+    their absolute position such that their dot product depends only on their
+    content and *relative position*. Generalized to arbitrary dimensions, RoPE
+    divides a D-dimensional space into D//2 subspaces.
+
     Example
     -------
     >>> module = RoPE(embedding_dimension=256, base=10_000)
@@ -190,6 +195,18 @@ class RoPE(nn.Module):
         return x
 
 
+def linear_attention(
+    q: torch.Tensor, 
+    k: torch.Tensor, 
+    v: torch.Tensor,
+) -> torch.Tensor:
+
+    score = F.softmax(torch.einsum('bhnk,bhnc->bhkc', k/4, v), dim=-1)
+    x = F.softmax(torch.einsum('bhnk,bhkc->bhnk', q/4, score), dim=-1)
+
+    return x
+
+
 class Attention(nn.Module):
     """Attention.
 
@@ -244,10 +261,72 @@ class Attention(nn.Module):
 
         q, k, v = rearrange(self.linear_1(x), 'b s (n h e) -> n b h s e', n=3, h=self.heads)
         q, k = self.rope(q), self.rope(k)
-        x = F.scaled_dot_product_attention(q, k, v)
+        x = linear_attention(q, k, v) #F.scaled_dot_product_attention(q, k, v)
         x = self.linear_2(rearrange(x, 'b h s e -> b s (h e)'))
 
         return x
+
+
+# class Attention(nn.Module):
+#     """Attention.
+
+#     Example
+#     -------
+#     >>> module = Attention(
+#     ...     embedding_dimension=256,
+#     ...     heads=16,
+#     ... )
+#     >>> x = torch.randn((1, 10, 256))
+#     >>> x = module(x)  # Shape: (1, 10, 256).
+#     """
+
+#     def __init__(self, *, embedding_dimension: int, heads: int) -> None:
+#         """Initialize the module.
+
+#         Parameters
+#         ----------
+#         embedding_dimension : int
+#             The embedding dimension.
+#         heads : int
+#             The number of heads.
+#         """
+
+#         super().__init__()
+
+#         self.heads = heads
+
+#         self.linear_1 = nn.Linear(
+#             in_features=embedding_dimension,
+#             out_features=embedding_dimension * 3,
+#             bias=False,
+#         )
+
+#         self.linear_2 = nn.Linear(
+#             in_features=embedding_dimension,
+#             out_features=embedding_dimension,
+#             bias=False,
+#         )
+
+#     def forward(self, x: torch.Tensor) -> torch.Tensor:
+#         """Forward the module.
+
+#         Parameters
+#         ----------
+#         x : torch.Tensor
+#             The input tensor.
+
+#         Returns
+#         -------
+#         x : torch.Tensor
+#             The output tensor.
+#         """
+
+#         x = self.linear_1(x)
+#         q, k, v = rearrange(x, 'b t (n h e) -> n b h t e', n=3, h=self.heads)
+#         x = F.scaled_dot_product_attention(q, k, v)
+#         x = self.linear_2(rearrange(x, 'b h t e -> b t (h e)'))
+
+#         return x
 
 
 class ResidualBlock(nn.Module):
